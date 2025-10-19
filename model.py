@@ -75,3 +75,64 @@ def test(model,device):
     acc = sum / 5
     print(f"Average Accuracy: {acc:.2f}%")
     return acc,acc_list
+
+
+
+
+def compute_fisher_information(model, task_number, num_samples, criterion, device):
+    model.eval()
+    experience = train_stream[task_number]
+    train_loader = DataLoader(experience.dataset, batch_size=1, shuffle=True)
+
+    # Initialize Fisher information dict (same structure as model params)
+    fisher_dict = {name: torch.zeros_like(param, device=device) for name, param in model.named_parameters()}
+
+    # Limit number of samples for computational efficiency
+    count = 0
+    for images, labels, *_ in train_loader:
+        images, labels = images.to(device), labels.to(device)
+
+        model.zero_grad()
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        loss.backward()
+
+        # Accumulate squared gradients (diagonal approximation)
+        for name, param in model.named_parameters():
+            if param.grad is not None:
+                fisher_dict[name] += param.grad.detach() ** 2
+
+        count += 1
+        if count >= num_samples:
+            break
+
+    # Average over samples
+    for name in fisher_dict:
+        fisher_dict[name] /= count
+
+    return fisher_dict
+
+
+
+def apply_importance_mask(model, fisher_dict, importance_percent):
+
+    all_importances = torch.cat([v.flatten() for v in fisher_dict.values()])
+    k = int(len(all_importances) * (importance_percent / 100.0))
+
+    if k == 0:
+        print("Warning: importance_percent too low, no weights kept.")
+        k = 1
+
+    # Get threshold for top-k important weights
+    threshold = torch.topk(all_importances, k, sorted=True)[0][-1].item()
+
+    mask_dict = {}
+    with torch.no_grad():
+        for name, param in model.named_parameters():
+            fisher_vals = fisher_dict[name]
+            mask = (fisher_vals >= threshold).float()  # 1 for keep, 0 for prune
+            mask_dict[name] = mask
+            param.data *= mask  # apply pruning directly
+
+    return model, mask_dict
+
