@@ -19,17 +19,15 @@ def network_mnist(size_first_layer, size_second_layer):
             self.fc3 = nn.Linear(size_second_layer, 10)
 
         def forward(self, x):
-            # Flatten the input: (batch_size, 1, 28, 28) -> (batch_size, 784)
             x = x.view(x.size(0), -1)
             x = F.relu(self.fc1(x))
             x = F.relu(self.fc2(x))
             x = self.fc3(x)
-            return x  # logits (use CrossEntropyLoss, so no softmax here)
+            return x  
 
     return MLP()
 
 def naive_train(model,task_number, epochs,criterion,optimizer,device):
-    """Train the model on a given SplitMNIST task."""
     experience = train_stream[task_number]
     train_loader = DataLoader(experience.dataset, batch_size=64, shuffle=True)
 
@@ -50,7 +48,6 @@ def naive_train(model,task_number, epochs,criterion,optimizer,device):
         #print(f"Task {task_number}, Epoch {epoch+1}, Loss: {total_loss/len(train_loader):.4f}")
 
 def test_taskwise(model,task_number,device):
-    """Test the model only on a specific SplitMNIST task."""
     experience = test_stream[task_number]
     test_loader = DataLoader(experience.dataset, batch_size=64, shuffle=False)
     model.eval()
@@ -69,7 +66,6 @@ def test_taskwise(model,task_number,device):
     return acc
 
 def test(model,device):
-    """Test the model on all tasks (0–4) combined."""
     sum=0
     acc_list=[]
     for i in range(5):
