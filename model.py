@@ -62,7 +62,7 @@ def test_taskwise(model,task_number,device):
             total += labels.size(0)
 
     acc = 100 * correct / total
-    print(f"Accuracy on task {task_number}: {acc:.2f}%")
+    #print(f"Accuracy on task {task_number}: {acc:.2f}%")
     return acc
 
 def test(model,device):
