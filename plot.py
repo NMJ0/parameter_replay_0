@@ -80,6 +80,7 @@ def plot_parameter_importance(percent_list, accuracy_list, task_id,
     
     # Add value annotations for key points (first, optimal, last)
     key_points = [0, 1,2,3,4,5,6,7,8,9]
+    key_points=[i for i in range(len(x))]
     for idx in key_points:
         ax.annotate(f'{y[idx]:.1f}%',
                    xy=(x[idx], y[idx]),
