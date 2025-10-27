@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from avalanche.benchmarks.classic import SplitMNIST
 from torch.utils.data import DataLoader, Subset
-
+import copy
 
 benchmark = SplitMNIST(n_experiences=5, seed=1,shuffle=False)
 train_stream = benchmark.train_stream
@@ -62,7 +62,7 @@ def test_taskwise(model,task_number,device):
             total += labels.size(0)
 
     acc = 100 * correct / total
-    #print(f"Accuracy on task {task_number}: {acc:.2f}%")
+    print(f"Accuracy on task {task_number}: {acc:.2f}%")
     return acc
 
 def test(model,device):
@@ -136,3 +136,29 @@ def apply_importance_mask(model, fisher_dict, importance_percent):
 
     return model, mask_dict
 
+
+def create_masked_weight_dict(model, mask_dict):
+    device = next(model.parameters()).device
+    masked_weight_dict = copy.deepcopy(model.state_dict())
+    
+    with torch.no_grad():
+        for name, param in model.named_parameters():
+            if name in mask_dict:
+                mask = mask_dict[name].to(device)
+                masked_weight_dict[name] = param.data * mask   
+                             
+    return masked_weight_dict
+
+
+def load_non_zero_weights(model, weight_dict):
+    device = next(model.parameters()).device
+    with torch.no_grad():
+        # Iterate over the model's current parameters
+        for name, param in model.named_parameters():
+            if name in weight_dict:
+                saved_tensor = weight_dict[name].to(device)
+                mask = (saved_tensor != 0)
+                param.data[mask] = saved_tensor[mask]
+                
+    model.eval()
+    return model
