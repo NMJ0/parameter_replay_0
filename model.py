@@ -46,6 +46,38 @@ def naive_train(model,task_number, epochs,criterion,optimizer,device):
             total_loss += loss.item()
 
         #print(f"Task {task_number}, Epoch {epoch+1}, Loss: {total_loss/len(train_loader):.4f}")
+def ewc_train(model,task_number, epochs,criterion,optimizer, fisher_dict_prev, parameter_dict_prev, ewc_lambda, device):
+    experience = train_stream[task_number]
+    train_loader = DataLoader(experience.dataset, batch_size=64, shuffle=True)
+    model.train()
+    for epoch in range(epochs):
+        total_loss = 0
+        for images, labels, *_ in train_loader:
+            images, labels = images.to(device), labels.to(device)
+
+            optimizer.zero_grad()
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+
+            # EWC regularization
+            if len(fisher_dict_prev) > 0 and len(parameter_dict_prev) > 0:
+                ewc_loss=0
+                for i in range(task_number):
+                    fisher_dict = fisher_dict_prev[i]
+                    optpar_dict = parameter_dict_prev[i]
+                    for name, param in model.named_parameters():
+                        if name in fisher_dict:
+                            fisher = fisher_dict[name]
+                            optpar = optpar_dict[name]
+                            ewc_loss += (fisher * (param - optpar).pow(2)).sum()
+                loss += (ewc_lambda / 2) * ewc_loss
+
+            loss.backward()
+            optimizer.step()
+
+            total_loss += loss.item()
+
+        #print(f"EWC Task {task_number}, Epoch {epoch+1}, Loss: {total_loss/len(train_loader):.4f}")
 
 def test_taskwise(model,task_number,device):
     experience = test_stream[task_number]
