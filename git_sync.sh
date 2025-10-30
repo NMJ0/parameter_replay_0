@@ -56,4 +56,4 @@ else
     fi
 fi
 
-echo "Script finished."
+echo "Script finished-."
